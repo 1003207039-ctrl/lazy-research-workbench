@@ -493,20 +493,6 @@ function renderSettings(root) {
     </div>
 
     <div class="card">
-      <div class="card-title"><span class="icon t-purple">☁️</span>云端同步</div>
-      <p style="font-size:12px;color:var(--text-sub);margin-bottom:10px">登录后可跨设备同步所有数据。数据通过 Supabase 加密存储，仅本人可访问。临床病例自动去标识化上传。</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-mini" onclick="manualSyncNow()" style="background:var(--primary);color:#fff">🔄 立即同步</button>
-        <button class="btn-mini" onclick="showAuthModal()" id="settings-login-btn">☁️ 登录/注册</button>
-        <button class="btn-mini" onclick="exportBackupBeforeMigration()">💾 导出备份</button>
-      </div>
-      <div class="alert-box alert-info" style="margin-top:12px" id="cloud-status-box">
-        <span>ℹ️</span>
-        <div id="cloud-status-text">云端同步未配置。请参考 <b>CLOUD_SETUP.md</b> 配置 Supabase。</div>
-      </div>
-    </div>
-
-    <div class="card">
       <div class="card-title"><span class="icon t-pink">💾</span>数据管理</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-mini" onclick="exportData()">📥 导出全部数据 (JSON)</button>
@@ -524,7 +510,7 @@ function renderSettings(root) {
       <div style="font-size:13px;line-height:1.8;color:var(--text-sub)">
         <b>打败懒惰科研工作台 v2.0</b><br/>
         妇科博士后 · 盆底功能障碍性疾病发病机制研究<br/>
-        本地数据存储于浏览器 localStorage，云端同步基于 Supabase（PostgreSQL + RLS）。<br/>
+        所有数据存储在浏览器本地 (localStorage)，不会上传到服务器。<br/>
         临床区域默认私密去标识化，医学内容仅供参考学习。
       </div>
     </div>
