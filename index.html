@@ -106,9 +106,10 @@
     </nav>
 
     <div class="sidebar-footer">
+      <div id="auth-container" class="auth-container"></div>
       <button class="btn-darkmode" id="btn-darkmode">🌙 切换深色模式</button>
       <button class="btn-darkmode" id="btn-reset" style="color:var(--red);margin-top:4px">🔄 重置示例数据</button>
-      <div class="version">v2.0 · 打败懒惰版</div>
+      <div class="version">v2.0 · 打败懒惰版 · 云端同步</div>
     </div>
   </aside>
 
@@ -195,6 +196,7 @@ window.addEventListener('beforeinstallprompt', e => {
   window._pwaEvent = e;
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./app.js"></script>
 <script src="./pages1.js"></script>
 <script src="./pages2.js"></script>
