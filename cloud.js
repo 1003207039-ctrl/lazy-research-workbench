@@ -20,6 +20,7 @@ let _cloudUpdatedAt = null;    // 云端数据最后更新时间
 let _realtimeChannel = null;   // Realtime 频道
 let _isSyncing = false;        // 是否正在同步中（防止循环）
 let _initialSyncDone = false;  // 初始同步是否完成
+let _lastSyncTime = null;      // 最后同步时间（用于 UI 显示）
 
 /* ===== 初始化 ===== */
 async function initCloud() {
@@ -32,7 +33,7 @@ async function initCloud() {
 
   try {
     // 创建 Supabase client（使用全局 window.supabase.createClient）
-    _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -68,6 +69,7 @@ async function initCloud() {
           _realtimeChannel = null;
         }
         _initialSyncDone = false;
+        _lastSyncTime = null;
       }
       updateAuthUI();
     });
@@ -103,6 +105,7 @@ async function cloudSignOut() {
   _currentUser = null;
   _cloudReady = false;
   _initialSyncDone = false;
+  _lastSyncTime = null;
   toast('已退出登录');
   updateAuthUI();
 }
@@ -138,6 +141,7 @@ async function _pushToCloud(isMigration = false) {
     if (error) throw error;
 
     _cloudUpdatedAt = new Date().toISOString();
+    _lastSyncTime = new Date();
     updateSyncStatus(isMigration ? 'synced' : 'idle');
     console.log('[Cloud] 推送成功', isMigration ? '(迁移)' : '');
   } catch (e) {
@@ -181,17 +185,31 @@ async function _initialSync() {
   updateSyncStatus('syncing');
 
   try {
-    // 1. 先导出本地备份（安全第一）
+    // 1. 先创建静默备份（安全第一）
     _exportBackupSilent();
 
     // 2. 拉取云端数据
     const cloudData = await _pullFromCloud();
 
     if (!cloudData || Object.keys(cloudData).length === 0) {
-      // 云端无数据 → 上传本地数据（首次迁移）
-      console.log('[Cloud] 云端无数据，执行首次迁移上传');
-      await _pushToCloud(true);
-      toast('数据已迁移到云端');
+      // 云端无数据 → 检查本地是否有数据需要迁移
+      const localHasData = _checkLocalHasData();
+      if (localHasData) {
+        // 弹出迁移确认对话框
+        const shouldMigrate = await _showMigrationPrompt();
+        if (shouldMigrate) {
+          console.log('[Cloud] 用户确认迁移，执行首次上传');
+          await _pushToCloud(true);
+          _lastSyncTime = new Date();
+          toast('数据已迁移到云端');
+        } else {
+          console.log('[Cloud] 用户跳过迁移');
+          toast('已跳过迁移，本地数据不受影响');
+        }
+      } else {
+        // 本地也无数据，无需迁移
+        console.log('[Cloud] 本地无数据，跳过迁移');
+      }
     } else {
       // 云端有数据 → 合并
       console.log('[Cloud] 云端有数据，执行合并');
@@ -200,15 +218,89 @@ async function _initialSync() {
       // 重新渲染当前页面
       renderPage(currentPage);
       updateBadges();
+      _lastSyncTime = new Date();
       toast('已从云端同步数据');
     }
 
     _initialSyncDone = true;
     updateSyncStatus('idle');
+    updateAuthUI();
   } catch (e) {
     console.error('[Cloud] 初始同步失败:', e);
     updateSyncStatus('error');
   }
+}
+
+/* ===== 检查本地是否有实质数据 ===== */
+function _checkLocalHasData() {
+  if (!DATA) return false;
+  const keys = ['tasks', 'inbox', 'weeklyPapers', 'dailyPapers', 'researchProjects',
+    'paperWritings', 'paperSubmits', 'library', 'clinicGuidelines', 'clinicSkills',
+    'clinicCases', 'clinicDuties', 'clinicWords', 'clinicRounds', 'clinicQuizzes', 'checkinGoals'];
+  for (const k of keys) {
+    if (DATA[k] && Array.isArray(DATA[k]) && DATA[k].length > 0) return true;
+  }
+  if (DATA.checkin && Object.keys(DATA.checkin).length > 0) return true;
+  return false;
+}
+
+/* ===== 迁移确认对话框 ===== */
+function _showMigrationPrompt() {
+  return new Promise(resolve => {
+    const bodyHTML = `
+      <div style="text-align:center;padding:8px 0">
+        <div style="font-size:48px;margin-bottom:12px">☁️</div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:8px">检测到本地有数据</div>
+        <div style="font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:16px">
+          云端暂无数据。是否将本地数据迁移到云端？<br/>
+          迁移后即可在多设备间同步。
+        </div>
+        <div class="alert-box alert-warning" style="margin-bottom:16px;text-align:left">
+          <span>⚠️</span>
+          <div>建议先导出备份再迁移。迁移不会删除本地数据。</div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn-mini" id="btn-export-first" style="background:var(--border);color:var(--text)">
+            💾 先导出备份
+          </button>
+          <button class="btn-mini" id="btn-migrate-yes" style="background:var(--primary);color:#fff">
+            ✅ 确认迁移
+          </button>
+          <button class="btn-mini" id="btn-migrate-no" style="background:var(--border);color:var(--text-sub)">
+            跳过
+          </button>
+        </div>
+      </div>
+    `;
+
+    openModal('数据迁移', bodyHTML, null);
+
+    // 绑定按钮
+    setTimeout(() => {
+      const btnExport = document.getElementById('btn-export-first');
+      const btnYes = document.getElementById('btn-migrate-yes');
+      const btnNo = document.getElementById('btn-migrate-no');
+
+      if (btnExport) {
+        btnExport.onclick = () => {
+          exportBackupBeforeMigration();
+          toast('备份已下载');
+        };
+      }
+      if (btnYes) {
+        btnYes.onclick = () => {
+          closeModal();
+          resolve(true);
+        };
+      }
+      if (btnNo) {
+        btnNo.onclick = () => {
+          closeModal();
+          resolve(false);
+        };
+      }
+    }, 50);
+  });
 }
 
 /* ===== Realtime 订阅 ===== */
@@ -238,8 +330,10 @@ function _subscribeRealtime() {
         saveData();
         renderPage(currentPage);
         updateBadges();
+        _lastSyncTime = new Date();
         toast('已同步其他设备的更新');
         updateSyncStatus('idle');
+        updateAuthUI();
       }
     })
     .subscribe();
@@ -393,6 +487,18 @@ function exportBackupBeforeMigration() {
   }
 }
 
+/* ===== 格式化同步时间 ===== */
+function _formatSyncTime() {
+  if (!_lastSyncTime) return '';
+  const now = new Date();
+  const diff = now - _lastSyncTime;
+  if (diff < 60000) return '刚刚同步';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前同步`;
+  const h = _lastSyncTime.getHours().toString().padStart(2, '0');
+  const m = _lastSyncTime.getMinutes().toString().padStart(2, '0');
+  return `今天 ${h}:${m} 同步`;
+}
+
 /* ===== UI：认证状态显示 ===== */
 function updateAuthUI() {
   const container = document.getElementById('auth-container');
@@ -404,12 +510,15 @@ function updateAuthUI() {
         <span class="auth-dot auth-dot-off"></span>
         <span class="auth-text-off">云端未配置</span>
       </div>`;
+    // 也更新设置页的云端状态
+    _updateSettingsCloudStatus();
     return;
   }
 
   if (_currentUser) {
     const email = _currentUser.email || '';
     const initial = email.charAt(0).toUpperCase();
+    const syncTimeStr = _formatSyncTime();
     container.innerHTML = `
       <div class="auth-user">
         <div class="auth-avatar">${initial}</div>
@@ -418,6 +527,7 @@ function updateAuthUI() {
           <div class="auth-status">
             <span class="sync-dot" id="sync-dot"></span>
             <span id="sync-text">已同步</span>
+            ${syncTimeStr ? `<span class="sync-time" id="sync-time">${syncTimeStr}</span>` : ''}
           </div>
         </div>
         <button class="auth-logout" onclick="cloudSignOut()" title="退出登录">退出</button>
@@ -427,6 +537,28 @@ function updateAuthUI() {
       <button class="btn-cloud-login" onclick="showAuthModal()">
         <span class="cloud-icon">☁️</span> 登录 / 注册
       </button>`;
+  }
+
+  // 更新设置页的云端状态
+  _updateSettingsCloudStatus();
+}
+
+/* ===== 更新设置页云端状态 ===== */
+function _updateSettingsCloudStatus() {
+  const statusBox = document.getElementById('cloud-status-box');
+  const statusText = document.getElementById('cloud-status-text');
+  if (!statusBox || !statusText) return;
+
+  if (!isCloudConfigured()) {
+    statusBox.className = 'alert-box alert-warning';
+    statusText.innerHTML = '云端同步未配置。请参考 <b>CLOUD_SETUP.md</b> 配置 Supabase。';
+  } else if (_currentUser) {
+    statusBox.className = 'alert-box alert-success';
+    const syncTimeStr = _formatSyncTime();
+    statusText.innerHTML = `已登录：<b>${_currentUser.email}</b>${syncTimeStr ? ' · ' + syncTimeStr : ''}`;
+  } else {
+    statusBox.className = 'alert-box alert-info';
+    statusText.innerHTML = '云端已配置，请点击左下角「登录 / 注册」开始使用。';
   }
 }
 
@@ -447,6 +579,14 @@ function updateSyncStatus(status) {
   const s = states[status] || states.idle;
   dot.style.background = s.color;
   text.textContent = s.label;
+
+  // 同步完成后更新同步时间
+  if (status === 'idle' || status === 'synced') {
+    const timeEl = document.getElementById('sync-time');
+    if (timeEl && _lastSyncTime) {
+      timeEl.textContent = _formatSyncTime();
+    }
+  }
 }
 
 /* ===== UI：登录/注册模态框 ===== */
@@ -531,7 +671,9 @@ async function manualSyncNow() {
     saveData();
     renderPage(currentPage);
     updateBadges();
+    _lastSyncTime = new Date();
     toast('同步完成');
+    updateAuthUI();
   }
 }
 

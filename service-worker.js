@@ -1,4 +1,4 @@
-const CACHE = 'defeat-lazy-v2';
+const CACHE = 'defeat-lazy-v3';
 
 const ASSETS = [
   './',
@@ -8,6 +8,8 @@ const ASSETS = [
   './pages1.js',
   './pages2.js',
   './pages3.js',
+  './cloud-config.js',
+  './cloud.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
