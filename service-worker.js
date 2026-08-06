@@ -8,7 +8,6 @@ const ASSETS = [
   './pages1.js',
   './pages2.js',
   './pages3.js',
-  './cloud-config.js',
   './cloud.js',
   './manifest.json',
   './icon-192.png',

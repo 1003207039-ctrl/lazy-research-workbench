@@ -2,6 +2,18 @@
    打败懒惰科研工作台 — 云端同步核心模块
    基于 Supabase：Auth + PostgreSQL (RLS) + Realtime
    ============================================================
+   配置区（publishable key 设计可公开，RLS 保护数据安全）
+   ============================================================= */
+const SUPABASE_URL = 'https://ocgrvdbpkuwcupyylcsq.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_patXjfasP8xjJzJuv6SncQ_2CkEfro5';
+
+function isCloudConfigured() {
+  return SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY &&
+         SUPABASE_URL.startsWith('https://') &&
+         SUPABASE_PUBLISHABLE_KEY.length > 20;
+}
+
+/* ============================================================
    架构：localStorage 为主，云端为辅
    - 离线时正常使用 localStorage
    - 在线时自动推送/拉取，实现跨设备同步
