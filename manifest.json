@@ -1,0 +1,26 @@
+{
+  "name": "打败懒惰科研工作台",
+  "short_name": "打败懒惰",
+  "description": "妇科博士后 · 盆底功能障碍性疾病研究 · 个人学术工作台",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f6fb",
+  "theme_color": "#6c5ce7",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "lang": "zh-CN",
+  "categories": ["productivity", "education", "health"]
+}
