@@ -141,6 +141,8 @@ function saveData() {
   } catch (e) {
     console.error('保存失败', e);
   }
+  // 云端同步钩子：防抖推送
+  if (typeof cloudSaveHook === 'function') cloudSaveHook();
 }
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -819,6 +821,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
   gotoPage('dashboard');
+  // 初始化云端同步
+  if (typeof initCloud === 'function') initCloud();
 });
 
 function toggleDark() {
